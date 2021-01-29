@@ -164,5 +164,9 @@ func main() {
 ### running the tests:
 
 ```bash
-go test -v  -run 'Int' -insOrder 0  -delOrder 0  -size 1000  -verbose 3
+go test -v  -run 'Int' -insOrder 0  -delOrder 0 -type 1 -size 1000  -verbose 3
+```
+
+```bash
+go test -v  -run 'Map'  -mode 1
 ```

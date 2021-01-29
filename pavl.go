@@ -4,48 +4,31 @@ import (
 	"unsafe"
 )
 
-const avlMaxHeight = 92
-
-const (
-	Left = iota
-	Right
-	ChildNum
-)
-
-/*
-  a  < b,  return negative value
-  a  > b,  return positive value
-  a == b,  return zero value
-*/
-type Compare func(a, b interface{}, extraParam interface{}) int
-
-type Item interface{}
-
-type node struct {
-	links   [ChildNum]*node
-	data    Item
-	balance int8
+type pnode struct {
+	links   [ChildNum]*pnode //child node
+	parent  *pnode           //parent node
+	data    Item             //data item
+	balance int8             //balance factor
 }
 
-type AvlTree struct {
-	root       *node       //root of  tree
+type PAvlTree struct {
+	root       *pnode      //root of  tree
 	cmpFunc    Compare     //compare function
 	extraParam interface{} //extra param for cmpFunc
 	count      int         // number of item in tree
-	generation int         // generation number
 }
 
-func NewAvl(cmp Compare, extra interface{}) *AvlTree {
+func NewPAvl(cmp Compare, extra interface{}) *PAvlTree {
 	if cmp == nil {
 		return nil
 	}
-	return &AvlTree{
+	return &PAvlTree{
 		cmpFunc:    cmp,
 		extraParam: extra,
 	}
 }
 
-func (t *AvlTree) Count() int {
+func (t *PAvlTree) Count() int {
 	if t == nil {
 		return 0
 	}
@@ -55,7 +38,7 @@ func (t *AvlTree) Count() int {
 //search target in tree
 //if find it return item
 //else return nil
-func (t *AvlTree) Find(target Item) Item {
+func (t *PAvlTree) Find(target Item) Item {
 	if t == nil || target == nil {
 		return nil
 	}
@@ -72,58 +55,53 @@ func (t *AvlTree) Find(target Item) Item {
 	return nil
 }
 
-func (t *AvlTree) insert(item Item) (*Item, bool) {
+func (t *PAvlTree) insert(item Item) (*Item, bool) {
 	if t == nil || item == nil {
 		return nil, false
 	}
 	var (
-		y   *node              //待更新平衡因子的最顶层节点
-		z   *node              //y's  parent
-		w   *node              //current walk node
-		p   *node              //w's  parent
-		n   *node              //new node
-		r   *node              //new root node of rebalanced subtree
-		dir byte               //下降方向
-		da  [avlMaxHeight]byte //缓存的下降方向数组
-		k   int                //length of da
+		y   *pnode //待更新平衡因子的最顶层节点
+		w   *pnode //current walk node
+		p   *pnode //w's  parent
+		n   *pnode //new node
+		r   *pnode //new root node of rebalanced subtree
+		dir byte   //下降方向
 	)
-	z = (*node)(unsafe.Pointer(&t.root))
-	dir = Left
 	y = t.root
-	for p, w = z, y; w != nil; p, w = w, w.links[dir] {
+	for p, w = nil, t.root; w != nil; p, w = w, w.links[dir] {
 		cmp := t.cmpFunc(item, w.data, t.extraParam)
 		if cmp == 0 {
-			//fmt.Printf("item: %v, w.data: %v\n", item, w.data)
 			return &w.data, false
-		}
-		if w.balance != 0 {
-			z = p
-			y = w
-			k = 0
 		}
 		if cmp > 0 {
 			dir = Right
 		} else {
 			dir = Left
 		}
-		da[k] = dir
-		k++
+		if w.balance != 0 {
+			y = w
+		}
 	}
-	n = &node{data: item}
-	p.links[dir] = n
+	n = &pnode{data: item, parent: p}
 	t.count++
-	if y == nil {
-		//fmt.Println("tree is empty, ", n.data)
+	if p != nil {
+		p.links[dir] = n
+	} else {
+		t.root = n
+	}
+	if t.root == n {
 		return &n.data, true
 	}
-	for w, k = y, 0; w != n; w, k = w.links[da[k]], k+1 {
-		if da[k] == Left {
-			w.balance--
+	for w = n; w != y; w = p {
+		p = w.parent
+		if p.links[Left] != w {
+			p.balance++
 		} else {
-			w.balance++
+			p.balance--
 		}
 	}
 	if y.balance == -2 {
+		//fmt.Printf("y.balance == -2\n")
 		x := y.links[Left]
 		if x.balance == -1 {
 			r = x
@@ -131,6 +109,11 @@ func (t *AvlTree) insert(item Item) (*Item, bool) {
 			x.links[Right] = y
 			x.balance = 0
 			y.balance = 0
+			x.parent = y.parent
+			y.parent = x
+			if y.links[Left] != nil {
+				y.links[Left].parent = y
+			}
 		} else { //x.balance == 1
 			r = x.links[Right]
 			x.links[Right] = r.links[Left]
@@ -148,8 +131,18 @@ func (t *AvlTree) insert(item Item) (*Item, bool) {
 				y.balance = 0
 			}
 			r.balance = 0
+			r.parent = y.parent
+			x.parent = r
+			y.parent = r
+			if x.links[Right] != nil {
+				x.links[Right].parent = x
+			}
+			if y.links[Left] != nil {
+				y.links[Left].parent = y
+			}
 		}
 	} else if y.balance == 2 {
+		//fmt.Printf("y.balance == 2\n")
 		x := y.links[Right]
 		if x.balance == 1 {
 			r = x
@@ -157,6 +150,11 @@ func (t *AvlTree) insert(item Item) (*Item, bool) {
 			x.links[Left] = y
 			x.balance = 0
 			y.balance = 0
+			x.parent = y.parent
+			y.parent = x
+			if y.links[Right] != nil {
+				y.links[Right].parent = y
+			}
 		} else { //x->avl_balance == -1
 			r = x.links[Left]
 			x.links[Left] = r.links[Right]
@@ -174,30 +172,44 @@ func (t *AvlTree) insert(item Item) (*Item, bool) {
 				y.balance = 0
 			}
 			r.balance = 0
+			r.parent = y.parent
+			x.parent = r
+			y.parent = r
+			if x.links[Left] != nil {
+				x.links[Left].parent = x
+			}
+			if y.links[Right] != nil {
+				y.links[Right].parent = y
+			}
 		}
 	} else {
+		//fmt.Printf("no balance return\n")
 		return &n.data, true
 	}
-	if y != z.links[Left] {
-		dir = Right
+	if r.parent != nil {
+		if r.parent.links[Left] != y {
+			dir = Right
+		} else {
+			dir = Left
+		}
+		r.parent.links[dir] = r
 	} else {
-		dir = Left
+		t.root = r
 	}
-	z.links[dir] = r
-	t.generation++
 	return &n.data, true
 }
 
 //insert item in tree
 //return true if item was successfully inserted
 //return false if item already in tree
-func (t *AvlTree) Insert(item Item) bool {
+func (t *PAvlTree) Insert(item Item) bool {
 	_, succ := t.insert(item)
 	return succ
 }
 
 //replace item in tree with same key item
-func (t *AvlTree) Replace(item Item) Item {
+//return old item
+func (t *PAvlTree) Replace(item Item) Item {
 	addr, succ := t.insert(item)
 	if addr == nil || succ {
 		return nil
@@ -210,86 +222,94 @@ func (t *AvlTree) Replace(item Item) Item {
 //delete item in tree
 //return item if find it
 //else  return nil
-func (t *AvlTree) Delete(item Item) Item {
+func (t *PAvlTree) Delete(item Item) Item {
 	if t == nil || item == nil {
 		return nil
 	}
-
-	var (
-		pa  [avlMaxHeight]*node
-		da  [avlMaxHeight]byte
-		k   int
-		w   *node
-		dir byte
-		cmp int
-	)
-	k = 0
-	w = (*node)(unsafe.Pointer(&t.root))
-	for cmp = -1; cmp != 0; cmp = t.cmpFunc(item, w.data, t.extraParam) {
+	if t.root == nil {
+		return nil
+	}
+	var dir int
+	w := t.root //walk node
+	for {
+		cmp := t.cmpFunc(item, w.data, t.extraParam)
+		if cmp == 0 {
+			break
+		}
 		if cmp > 0 {
 			dir = Right
 		} else {
 			dir = Left
 		}
-		pa[k] = w
-		da[k] = dir
-		k++
 		w = w.links[dir]
 		if w == nil {
 			return nil
 		}
 	}
 	ret := w.data
-
-	//fmt.Printf("in delete(), ret: %v, k=%d\n", ret, k)
+	p := w.parent
+	if p == nil {
+		p = (*pnode)(unsafe.Pointer(&t.root))
+		dir = Left
+	}
 	if w.links[Right] == nil { //case 1, w has no right child
-		pa[k-1].links[da[k-1]] = w.links[Left]
+		p.links[dir] = w.links[Left]
+		if p.links[dir] != nil {
+			p.links[dir].parent = w.parent
+		}
 	} else { //case 2, w's right child has no left child
 		r := w.links[Right]
 		if r.links[Left] == nil {
 			r.links[Left] = w.links[Left]
-			r.balance = w.balance
-			pa[k-1].links[da[k-1]] = r
-			da[k] = Right
-			pa[k] = r
-			k++
-		} else { //case 3, w's right child has left child
-
-			var s *node
-			j := k
-			k++
-			for {
-				da[k] = Left
-				pa[k] = r
-				k++
-				s = r.links[Left]
-				if s.links[Left] == nil {
-					break
-				}
-				r = s
+			p.links[dir] = r
+			r.parent = w.parent
+			if r.links[Left] != nil {
+				r.links[Left].parent = r
 			}
-			s.links[Left] = w.links[Left]
+			r.balance = w.balance
+			p = r
+			dir = Right
+		} else { //case 3, w's right child has left child
+			s := r.links[Left]
+			for s.links[Left] != nil {
+				s = s.links[Left]
+			}
+			r = s.parent
 			r.links[Left] = s.links[Right]
+			s.links[Left] = w.links[Left]
 			s.links[Right] = w.links[Right]
+			p.links[dir] = s
+			if s.links[Left] != nil {
+				s.links[Left].parent = s
+			}
+			s.links[Right].parent = s
+			s.parent = w.parent
+			if r.links[Left] != nil {
+				r.links[Left].parent = r
+			}
 			s.balance = w.balance
-
-			pa[j-1].links[da[j-1]] = s
-			da[j] = Right
-			pa[j] = s
+			p = r
+			dir = Left
 		}
 	}
 	w = nil
-	//删除后，更新平衡因子, 重新平衡
-	k--
-	//fmt.Printf("before loop: k=%d\n", k)
-	for ; k > 0; k-- {
-		y := pa[k]
-		if da[k] == Left {
-			//fmt.Printf("left subtree branch, y: %v\n", *y)
+	for p != (*pnode)(unsafe.Pointer(&t.root)) {
+		y := p
+		if y.parent != nil {
+			p = y.parent
+		} else {
+			p = (*pnode)(unsafe.Pointer(&t.root))
+		}
+		if dir == Left {
+			if p.links[Left] != y {
+				dir = Right
+			} else {
+				dir = Left
+			}
 			y.balance++
 			if y.balance == 1 {
 				break
-			} else if y.balance == 2 { //重新平衡
+			} else if y.balance == 2 {
 				x := y.links[Right]
 				if x.balance == -1 {
 					r := x.links[Left]
@@ -308,11 +328,25 @@ func (t *AvlTree) Delete(item Item) Item {
 						y.balance = 0
 					}
 					r.balance = 0
-					pa[k-1].links[da[k-1]] = r
+					r.parent = y.parent
+					x.parent = r
+					y.parent = r
+					if x.links[Left] != nil {
+						x.links[Left].parent = x
+					}
+					if y.links[Right] != nil {
+						y.links[Right].parent = y
+					}
+					p.links[dir] = r
 				} else { /*  x.balance == 0  ||  x.balance == 1 */
 					y.links[Right] = x.links[Left]
 					x.links[Left] = y
-					pa[k-1].links[da[k-1]] = x
+					x.parent = y.parent
+					y.parent = x
+					if y.links[Right] != nil {
+						y.links[Right].parent = y
+					}
+					p.links[dir] = x
 					if x.balance == 0 {
 						x.balance = -1
 						y.balance = 1
@@ -320,11 +354,17 @@ func (t *AvlTree) Delete(item Item) Item {
 					} else {
 						x.balance = 0
 						y.balance = 0
+						y = x
 					}
 				}
 			}
-		} else {
-			//fmt.Printf("else branch")
+
+		} else { // dir == Right
+			if p.links[Left] != y {
+				dir = Right
+			} else {
+				dir = Left
+			}
 			y.balance--
 			if y.balance == -1 {
 				break
@@ -347,11 +387,25 @@ func (t *AvlTree) Delete(item Item) Item {
 						y.balance = 0
 					}
 					r.balance = 0
-					pa[k-1].links[da[k-1]] = r
+					r.parent = y.parent
+					x.parent = r
+					y.parent = r
+					if x.links[Right] != nil {
+						x.links[Right].parent = x
+					}
+					if y.links[Left] != nil {
+						y.links[Left].parent = y
+					}
+					p.links[dir] = r
 				} else {
 					y.links[Left] = x.links[Right]
 					x.links[Right] = y
-					pa[k-1].links[da[k-1]] = x
+					x.parent = y.parent
+					y.parent = x
+					if y.links[Left] != nil {
+						y.links[Left].parent = y
+					}
+					p.links[dir] = x
 					if x.balance == 0 {
 						x.balance = 1
 						y.balance = -1
@@ -359,22 +413,21 @@ func (t *AvlTree) Delete(item Item) Item {
 					} else {
 						x.balance = 0
 						y.balance = 0
+						y = x
 					}
 				}
 			}
 		}
 	}
-
 	t.count--
-	t.generation++
 	return ret
 }
 
-func (t *AvlTree) Copy() *AvlTree {
+func (t *PAvlTree) Copy() *PAvlTree {
 	if t == nil {
 		return nil
 	}
-	n := NewAvl(t.cmpFunc, t.extraParam)
+	n := NewPAvl(t.cmpFunc, t.extraParam)
 	if n == nil {
 		return nil
 	}
@@ -383,20 +436,15 @@ func (t *AvlTree) Copy() *AvlTree {
 		return n
 	}
 	var (
-		stack  [2 * (avlMaxHeight + 1)]*node
-		height int
-		x      *node
-		y      *node
+		x *pnode
+		y *pnode
 	)
-	x = (*node)(unsafe.Pointer(&t.root))
-	y = (*node)(unsafe.Pointer(&n.root))
+	x = (*pnode)(unsafe.Pointer(&t.root))
+	y = (*pnode)(unsafe.Pointer(&n.root))
 	for {
 		for x.links[Left] != nil {
-			y.links[Left] = &node{}
-			stack[height] = x
-			height++
-			stack[height] = y
-			height++
+			y.links[Left] = &pnode{}
+			y.links[Left].parent = y
 			x = x.links[Left]
 			y = y.links[Left]
 		}
@@ -405,97 +453,90 @@ func (t *AvlTree) Copy() *AvlTree {
 			y.data = x.data
 			y.balance = x.balance
 			if x.links[Right] != nil {
-				y.links[Right] = &node{}
+				y.links[Right] = &pnode{}
+				y.links[Right].parent = y
 				x = x.links[Right]
 				y = y.links[Right]
 				break
 			} else {
 				y.links[Right] = nil
 			}
-			if height <= 2 {
-				return n
+			for {
+				w := x
+				x = x.parent
+				if x == nil {
+					n.root.parent = nil
+					return n
+				}
+				y = y.parent
+				if w == x.links[Left] {
+					break
+				}
 			}
-			height--
-			y = stack[height]
-			height--
-			x = stack[height]
 		}
 	}
 }
 
-func (t *AvlTree) Iter() *AvlIter {
-	it := NewIter()
+func (t *PAvlTree) Iter() *PAvlIter {
+	it := NewPIter()
 	return it.HookWith(t)
 }
 
-type AvlIter struct {
-	tree       *AvlTree            //the tree be iterated
-	node       *node               //current node in tree
-	stack      [avlMaxHeight]*node //all node above current node
-	height     int                 //current depth of stack
-	generation int                 // generation number
+type PAvlIter struct {
+	tree *PAvlTree //the tree be iterated
+	node *pnode    //current node in tree
 }
 
-func NewIter() *AvlIter {
-	return &AvlIter{}
+func NewPIter() *PAvlIter {
+	return &PAvlIter{}
 }
 
-func (it *AvlIter) HookWith(tree *AvlTree) *AvlIter {
+func (it *PAvlIter) HookWith(tree *PAvlTree) *PAvlIter {
 	if it == nil {
 		return nil
 	}
 	it.tree = tree
 	it.node = nil
-	it.height = 0
-	it.generation = tree.generation
-
 	return it
 }
 
-func (it *AvlIter) First() Item {
+func (it *PAvlIter) First() Item {
 	if it == nil || it.tree == nil {
 		return nil
 	}
-	it.height = 0
 	w := it.tree.root
 	if w == nil {
 		return nil
 	}
 	for w.links[Left] != nil {
-		it.stack[it.height] = w
-		it.height++
 		w = w.links[Left]
 	}
 	it.node = w
 	return w.data
 }
 
-func (it *AvlIter) Last() Item {
+func (it *PAvlIter) Last() Item {
 	if it == nil || it.tree == nil {
 		return nil
 	}
-	it.height = 0
 	w := it.tree.root
 	if w == nil {
 		return nil
 	}
 	for w.links[Right] != nil {
-		it.stack[it.height] = w
-		it.height++
 		w = w.links[Right]
 	}
 	it.node = w
 	return w.data
 }
 
-func (it *AvlIter) Find(item Item) Item {
+func (it *PAvlIter) Find(item Item) Item {
 	if it == nil || it.tree == nil || item == nil {
 		return nil
 	}
-	it.height = 0
 	var (
-		w *node //walk node
-		n *node //child of w
+		w *pnode //walk node
+		n *pnode //child of w
 	)
 	for w = it.tree.root; w != nil; w = n {
 		cmp := it.tree.cmpFunc(item, w.data, it.tree.extraParam)
@@ -508,44 +549,32 @@ func (it *AvlIter) Find(item Item) Item {
 		} else {
 			n = w.links[Right]
 		}
-		it.stack[it.height] = w
-		it.height++
 	}
-	it.height = 0
 	it.node = nil
 	return nil
 }
 
-func (it *AvlIter) Next() Item {
+func (it *PAvlIter) Next() Item {
 	if it == nil || it.tree == nil {
 		return nil
-	}
-	if it.generation != it.tree.generation {
-		it.refresh()
 	}
 	w := it.node
 	if w == nil {
 		return it.First()
 	} else if w.links[Right] != nil {
-		it.stack[it.height] = w
-		it.height++
 		w = w.links[Right]
 		for w.links[Left] != nil {
-			it.stack[it.height] = w
-			it.height++
 			w = w.links[Left]
 		}
 	} else {
-		for {
-			if it.height == 0 {
-				it.node = nil
+		for p := w.parent; ; w, p = p, p.parent {
+			if p == nil {
+				it.node = p
 				return nil
 			}
-			n := w
-			it.height--
-			w = it.stack[it.height]
-			if w.links[Right] != n {
-				break
+			if w == p.links[Left] {
+				it.node = p
+				return p.data
 			}
 		}
 	}
@@ -553,68 +582,35 @@ func (it *AvlIter) Next() Item {
 	return w.data
 }
 
-func (it *AvlIter) Prev() Item {
+func (it *PAvlIter) Prev() Item {
 	if it == nil || it.tree == nil {
 		return nil
-	}
-	if it.generation != it.tree.generation {
-		it.refresh()
 	}
 	w := it.node
 	if w == nil {
 		return it.Last()
 	} else if w.links[Left] != nil {
-		it.stack[it.height] = w
-		it.height++
 		w = w.links[Left]
 		for w.links[Right] != nil {
-			it.stack[it.height] = w
-			it.height++
 			w = w.links[Right]
 		}
 	} else {
-		for {
-			if it.height == 0 {
-				it.node = nil
+		for p := w.parent; ; w, p = p, p.parent {
+			if p == nil {
+				it.node = p
 				return nil
 			}
-			n := w
-			it.height--
-			w = it.stack[it.height]
-			if w.links[Left] != n {
-				break
+			if w == p.links[Right] {
+				it.node = p
+				return p.data
 			}
 		}
-
 	}
 	it.node = w
 	return w.data
 }
 
-func (it *AvlIter) refresh() {
-	if it == nil || it.tree == nil {
-		return
-	}
-	it.generation = it.tree.generation
-	if it.node != nil {
-		cmpFunc := it.tree.cmpFunc
-		param := it.tree.extraParam
-		node := it.node
-		it.height = 0
-		for w := it.tree.root; w != node; {
-			it.stack[it.height] = w
-			it.height++
-			ret := cmpFunc(node.data, w.data, param)
-			if ret > 0 {
-				w = w.links[Right]
-			} else {
-				w = w.links[Left]
-			}
-		}
-	}
-}
-
-func (it *AvlIter) Current() Item {
+func (it *PAvlIter) Current() Item {
 	if it == nil || it.node == nil {
 		return nil
 	}
@@ -622,7 +618,7 @@ func (it *AvlIter) Current() Item {
 }
 
 //don't change key part of item
-func (it *AvlIter) Replace(new Item) Item {
+func (it *PAvlIter) Replace(new Item) Item {
 	if it == nil || it.node == nil || new == nil {
 		return nil
 	}
@@ -631,32 +627,23 @@ func (it *AvlIter) Replace(new Item) Item {
 	return old
 }
 
-func (it *AvlIter) CopyFrom(other *AvlIter) Item {
+func (it *PAvlIter) CopyFrom(other *PAvlIter) Item {
 	if it == nil || other == nil {
 		return nil
 	}
-	if it != other {
-		it.tree = other.tree
-		it.node = other.node
-		it.generation = other.generation
-		if it.generation == it.tree.generation {
-			it.height = other.height
-			copy(it.stack[:it.height], other.stack[:other.height])
-		}
-	}
+	it.tree = other.tree
+	it.node = other.node
 	if it.node == nil {
 		return nil
 	}
 	return it.node.data
 }
 
-func (it *AvlIter) Insert(item Item) (*Item, bool) {
+func (it *PAvlIter) Insert(item Item) (*Item, bool) {
 	if it == nil || it.tree == nil || item == nil {
 		return nil, false
 	}
 	addr, ok := it.tree.insert(item)
-
-	it.node = (*node)(unsafe.Pointer(uintptr(unsafe.Pointer(addr)) - unsafe.Offsetof(it.node.data)))
-	it.generation = it.tree.generation - 1
+	it.node = (*pnode)(unsafe.Pointer(uintptr(unsafe.Pointer(addr)) - unsafe.Offsetof(it.node.data)))
 	return addr, ok
 }

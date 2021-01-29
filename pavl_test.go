@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func (n *node) print(lvl int) {
+func (n *pnode) print(lvl int) {
 	if n == nil {
 		return
 	}
@@ -26,144 +26,13 @@ func (n *node) print(lvl int) {
 	}
 }
 
-func recurseVerifyTree(t *testing.T, node *node, ok *bool, count *int, min, max int, height *int) {
-	var (
-		d         int
-		subcount  [ChildNum]int
-		subheight [ChildNum]int
-	)
-	if node == nil {
-		*count = 0
-		*height = 0
-		return
-	}
-	d = node.data.(int)
-	if min > max {
-		t.Errorf("Parents of node %d constrain it to empty range %d...%d.\n",
-			d, min, max)
-		*ok = false
-	} else if d < min || d > max {
-		t.Errorf("Node %d is not in range %d...%d implied by its parents.\n", d, min, max)
-		*ok = false
-	}
-	recurseVerifyTree(t, node.links[Left], ok, &subcount[Left], min, d-1, &subheight[Left])
-	recurseVerifyTree(t, node.links[Right], ok, &subcount[Right], d+1, max, &subheight[Right])
-
-	*count = 1 + subcount[Left] + subcount[Right]
-	maxHeight := 0
-	if subheight[Left] > subheight[Right] {
-		maxHeight = subheight[Left]
-	} else {
-		maxHeight = subheight[Right]
-	}
-	*height = maxHeight + 1
-
-	if subheight[Right]-subheight[Left] != int(node.balance) {
-		t.Errorf("Balance factor of node %d is %d, but should be %d.\n",
-			d, node.balance, subheight[Right]-subheight[Left])
-
-		*ok = false
-	} else if node.balance < -1 || node.balance > 1 {
-		t.Errorf("Balance factor of node %d is %d.\n", d, node.balance)
-		*ok = false
-	}
-}
-
-func verifyTree(t *testing.T, tree *AvlTree, arr []int) bool {
-	ok := true
-	if tree.Count() != len(arr) {
-		t.Errorf("Tree count is %d, but should be %d.\n", tree.Count(), len(arr))
-		ok = false
-	}
-	n := len(arr)
-	if ok {
-		count := 0
-		height := 0
-		recurseVerifyTree(t, tree.root, &ok, &count, 0, math.MaxInt64, &height)
-		if count != len(arr) {
-			t.Errorf("Tree has %d nodes, but should have %d.\n", count, len(arr))
-			ok = false
-		}
-	}
-	if ok {
-		for _, elem := range arr {
-			if ret := tree.Find(elem); ret == nil {
-				t.Errorf("Tree does not contain expected value %d.\n", elem)
-				ok = false
-			}
-		}
-	}
-	if ok {
-		var (
-			it   AvlIter
-			item Item
-			i    int
-		)
-		prev := -1
-		for i, item = 0, it.HookWith(tree).First(); i < 2*n && item != nil; i, item = i+1, it.Next() {
-			if item.(int) <= prev {
-				t.Errorf("Tree out of order: %d follows %d in traversal\n", item, prev)
-				ok = false
-			}
-			prev = item.(int)
-		}
-		if i != n {
-			t.Errorf("Tree should have %d items, but has %d in traversal\n", n, i)
-			ok = false
-		}
-	}
-	if ok {
-		var (
-			it   AvlIter
-			item Item
-			i    int
-		)
-		next := math.MaxInt64
-		for i, item = 0, it.HookWith(tree).Last(); i < 2*n && item != nil; i, item = i+1, it.Prev() {
-			if item.(int) >= next {
-				t.Errorf("Tree out of order: %d precedes  %d in traversal\n", item, next)
-				ok = false
-			}
-			next = item.(int)
-		}
-		if i != n {
-			t.Errorf("Tree should have %d items, but has %d in traversal\n", n, i)
-			ok = false
-		}
-	}
-	if ok {
-		init := tree.Iter()
-		first := tree.Iter()
-		last := tree.Iter()
-		first.First()
-		last.Last()
-		if cur := init.Current(); cur != nil {
-			t.Errorf("Inited iter should be nil, but is actually %d.\n", cur)
-			ok = false
-		}
-		next := init.Next()
-		if next != first.Current() {
-			t.Errorf("Next after nil should be %d, but is actually %d.\n", first.Current(), next)
-			ok = false
-		}
-		init.Prev()
-		prev := init.Prev()
-		if prev != last.Current() {
-			t.Errorf("Prev before nil should be %d, but is actually %d.\n", last.Current(), prev)
-			ok = false
-		}
-		init.Next()
-	}
-	return ok
-}
-
-func (t *AvlTree) print(title string) {
+func (t *PAvlTree) print(title string) {
 	fmt.Printf("%s: ", title)
 	t.root.print(0)
 	fmt.Println()
 }
 
-func (it *AvlIter) check(t *testing.T, i, n int, title string) bool {
+func (it *PAvlIter) check(t *testing.T, i, n int, title string) bool {
 	ok := true
 	prev := it.Prev()
 	actual := 0
@@ -214,44 +83,192 @@ func (it *AvlIter) check(t *testing.T, i, n int, title string) bool {
 	return ok
 }
 
-func compareTrees(t *testing.T, a, b *node) bool {
+func comparePTrees(t *testing.T, a, b *pnode) bool {
 	if a == nil && b == nil {
 		return true
+	}
+	pf := func(n *pnode) Item {
+		if n.parent != nil {
+			return n.parent.data
+		}
+		return -1
+	}
+	cf := func(n *pnode, dir int) string {
+		if n.links[dir] != nil {
+			return "has"
+		}
+		return "no"
 	}
 	if a.data != b.data ||
 		((a.links[Left] != nil) != (b.links[Left] != nil)) ||
 		((a.links[Right] != nil) != (b.links[Right] != nil)) ||
+		((a.parent != nil) != (b.parent != nil)) ||
+		(a.parent != nil && b.parent != nil && a.parent.data != b.parent.data) ||
 		a.balance != b.balance {
-		t.Logf("Copied nodes differ: a=%d (bal=%d) b=%d (bal=%d) a:", a.data, a.balance, b.data, b.balance)
-		if a.links[Left] != nil {
-			t.Logf("l")
-		}
-		if a.links[Right] != nil {
-			t.Logf("r")
-		}
-		t.Logf(" b:")
-		if b.links[Left] != nil {
-			t.Logf("l")
-		}
-		if b.links[Right] != nil {
-			t.Logf("r")
-		}
-		t.Log()
+
+		t.Logf("Copied nodes differ:\n"+
+			"a=%d, bal %d, parent %d, %s left child, %s right child\n"+
+			"b=%d, bal %d, parent %d, %s left child, %s right child\n",
+			a.data, a.balance, pf(a), cf(a, Left), cf(a, Right),
+			b.data, b.balance, pf(b), cf(b, Left), cf(b, Right))
 		return false
 	}
 	ok := true
 	if a.links[Left] != nil {
-		ok = ok && compareTrees(t, a.links[Left], b.links[Left])
+		ok = ok && comparePTrees(t, a.links[Left], b.links[Left])
 	}
 	if a.links[Right] != nil {
-		ok = ok && compareTrees(t, a.links[Right], b.links[Right])
+		ok = ok && comparePTrees(t, a.links[Right], b.links[Right])
 	}
 	return ok
 }
 
-func testCorrectness(t *testing.T, insert, delete []int) (ok bool) {
+func recurseVerifyPTree(t *testing.T, node *pnode, ok *bool, count *int, min, max int, height *int) {
+	var (
+		d         int
+		subcount  [ChildNum]int
+		subheight [ChildNum]int
+	)
+	if node == nil {
+		*count = 0
+		*height = 0
+		return
+	}
+	d = node.data.(int)
+	if min > max {
+		t.Errorf("Parents of node %d constrain it to empty range %d...%d.\n",
+			d, min, max)
+		*ok = false
+	} else if d < min || d > max {
+		t.Errorf("Node %d is not in range %d...%d implied by its parents.\n", d, min, max)
+		*ok = false
+	}
+	recurseVerifyPTree(t, node.links[Left], ok, &subcount[Left], min, d-1, &subheight[Left])
+	recurseVerifyPTree(t, node.links[Right], ok, &subcount[Right], d+1, max, &subheight[Right])
+
+	*count = 1 + subcount[Left] + subcount[Right]
+	maxHeight := 0
+	if subheight[Left] > subheight[Right] {
+		maxHeight = subheight[Left]
+	} else {
+		maxHeight = subheight[Right]
+	}
+	*height = maxHeight + 1
+
+	if subheight[Right]-subheight[Left] != int(node.balance) {
+		t.Errorf("Balance factor of node %d is %d, but should be %d.\n",
+			d, node.balance, subheight[Right]-subheight[Left])
+
+		*ok = false
+	} else if node.balance < -1 || node.balance > 1 {
+		t.Errorf("Balance factor of node %d is %d.\n", d, node.balance)
+		*ok = false
+	}
+	for i := 0; i < ChildNum; i++ {
+		if node.links[i] != nil && node.links[i].parent != node {
+			var pdata Item
+			if node.links[i].parent != nil {
+				pdata = node.links[i].parent.data
+			} else {
+				pdata = -1
+			}
+			t.Errorf("Node %d has parent %d (should be %d).\n",
+				node.links[i].data, pdata, d)
+		}
+	}
+}
+
+func verifyPTree(t *testing.T, tree *PAvlTree, arr []int) bool {
+	ok := true
+	if tree.Count() != len(arr) {
+		t.Errorf("Tree count is %d, but should be %d.\n", tree.Count(), len(arr))
+		ok = false
+	}
+	n := len(arr)
+	if ok {
+		count := 0
+		height := 0
+		recurseVerifyPTree(t, tree.root, &ok, &count, 0, math.MaxInt64, &height)
+		if count != len(arr) {
+			t.Errorf("Tree has %d nodes, but should have %d.\n", count, len(arr))
+			ok = false
+		}
+	}
+	if ok {
+		for _, elem := range arr {
+			if ret := tree.Find(elem); ret == nil {
+				t.Errorf("Tree does not contain expected value %d.\n", elem)
+				ok = false
+			}
+		}
+	}
+	if ok {
+		var (
+			it   PAvlIter
+			item Item
+			i    int
+		)
+		prev := -1
+		for i, item = 0, it.HookWith(tree).First(); i < 2*n && item != nil; i, item = i+1, it.Next() {
+			if item.(int) <= prev {
+				t.Errorf("Tree out of order: %d follows %d in traversal\n", item, prev)
+				ok = false
+			}
+			prev = item.(int)
+		}
+		if i != n {
+			t.Errorf("Tree should have %d items, but has %d in traversal\n", n, i)
+			ok = false
+		}
+	}
+	if ok {
+		var (
+			it   PAvlIter
+			item Item
+			i    int
+		)
+		next := math.MaxInt64
+		for i, item = 0, it.HookWith(tree).Last(); i < 2*n && item != nil; i, item = i+1, it.Prev() {
+			if item.(int) >= next {
+				t.Errorf("Tree out of order: %d precedes  %d in traversal\n", item, next)
+				ok = false
+			}
+			next = item.(int)
+		}
+		if i != n {
+			t.Errorf("Tree should have %d items, but has %d in traversal\n", n, i)
+			ok = false
+		}
+	}
+	if ok {
+		init := tree.Iter()
+		first := tree.Iter()
+		last := tree.Iter()
+		first.First()
+		last.Last()
+		if cur := init.Current(); cur != nil {
+			t.Errorf("Inited iter should be nil, but is actually %d.\n", cur)
+			ok = false
+		}
+		next := init.Next()
+		if next != first.Current() {
+			t.Errorf("Next after nil should be %d, but is actually %d.\n", first.Current(), next)
+			ok = false
+		}
+		init.Prev()
+		prev := init.Prev()
+		if prev != last.Current() {
+			t.Errorf("Prev before nil should be %d, but is actually %d.\n", last.Current(), prev)
+			ok = false
+		}
+		init.Next()
+	}
+	return ok
+}
+
+func testPCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 	//测试创建树,插入数据
-	tree := NewAvl(intCmp, nil)
+	tree := NewPAvl(intCmp, nil)
 	ok = true
 	n := len(insert)
 
@@ -272,7 +289,7 @@ func testCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 		if *verbose >= 3 {
 			tree.print("After insert")
 		}
-		if !verifyTree(t, tree, insert[:i+1]) {
+		if !verifyPTree(t, tree, insert[:i+1]) {
 			ok = false
 			return
 		}
@@ -281,9 +298,9 @@ func testCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 	//测试修改树的同时使用迭代器访问树
 	for i := 0; i < n; i++ {
 		var (
-			x AvlIter
-			y AvlIter
-			z AvlIter
+			x PAvlIter
+			y PAvlIter
+			z PAvlIter
 		)
 		if insert[i] == delete[i] {
 			continue
@@ -324,7 +341,7 @@ func testCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 		ok = ok && x.check(t, insert[i], len(insert), "Postdeletion")
 		ok = ok && y.check(t, insert[i], len(insert), "Copied")
 		ok = ok && z.check(t, delete[i], len(delete), "Insertion")
-		if !verifyTree(t, tree, insert) {
+		if !verifyPTree(t, tree, insert) {
 			ok = false
 			return
 		}
@@ -347,7 +364,7 @@ func testCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 		if *verbose >= 3 {
 			tree.print("After delete")
 		}
-		if !verifyTree(t, tree, delete[i+1:]) {
+		if !verifyPTree(t, tree, delete[i+1:]) {
 			ok = false
 			return
 		}
@@ -363,7 +380,7 @@ func testCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 				ok = false
 				return
 			}
-			ok = ok && compareTrees(t, tree.root, copy.root)
+			ok = ok && comparePTrees(t, tree.root, copy.root)
 		}
 
 	}
@@ -374,8 +391,8 @@ func testCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 	return
 }
 
-func iterFirst(t *testing.T, tree *AvlTree, n int) bool {
-	var it AvlIter
+func iterPFirst(t *testing.T, tree *PAvlTree, n int) bool {
+	var it PAvlIter
 	if ret := it.HookWith(tree).First(); ret == nil || ret != 0 {
 		actual := 0
 		if ret != nil {
@@ -389,8 +406,8 @@ func iterFirst(t *testing.T, tree *AvlTree, n int) bool {
 	return true
 }
 
-func iterLast(t *testing.T, tree *AvlTree, n int) bool {
-	var it AvlIter
+func iterPLast(t *testing.T, tree *PAvlTree, n int) bool {
+	var it PAvlIter
 	if ret := it.HookWith(tree).Last(); ret == nil || ret != n-1 {
 		actual := 0
 		if ret != nil {
@@ -404,8 +421,8 @@ func iterLast(t *testing.T, tree *AvlTree, n int) bool {
 	return true
 }
 
-func iterFind(t *testing.T, tree *AvlTree, n int) bool {
-	var it AvlIter
+func iterPFind(t *testing.T, tree *PAvlTree, n int) bool {
+	var it PAvlIter
 	it.HookWith(tree)
 	for i := 0; i < n; i++ {
 		if ret := it.Find(i); ret == nil || ret != i {
@@ -422,8 +439,8 @@ func iterFind(t *testing.T, tree *AvlTree, n int) bool {
 	return true
 }
 
-func iterInsert(t *testing.T, tree *AvlTree, n int) bool {
-	var it AvlIter
+func iterPInsert(t *testing.T, tree *PAvlTree, n int) bool {
+	var it PAvlIter
 	it.HookWith(tree)
 	for i := 0; i < n; i++ {
 		if ret, succ := it.Insert(i); ret == nil || succ {
@@ -440,8 +457,8 @@ func iterInsert(t *testing.T, tree *AvlTree, n int) bool {
 	return true
 }
 
-func iterNext(t *testing.T, tree *AvlTree, n int) bool {
-	var it AvlIter
+func iterPNext(t *testing.T, tree *PAvlTree, n int) bool {
+	var it PAvlIter
 	it.HookWith(tree)
 	for i := 0; i < n; i++ {
 		if ret := it.Next(); ret == nil || ret != i {
@@ -458,8 +475,8 @@ func iterNext(t *testing.T, tree *AvlTree, n int) bool {
 	return true
 }
 
-func iterPrev(t *testing.T, tree *AvlTree, n int) bool {
-	var it AvlIter
+func iterPPrev(t *testing.T, tree *PAvlTree, n int) bool {
+	var it PAvlIter
 	it.HookWith(tree)
 	for i := n - 1; i >= 0; i-- {
 		if ret := it.Prev(); ret == nil || ret != i {
@@ -476,31 +493,31 @@ func iterPrev(t *testing.T, tree *AvlTree, n int) bool {
 	return true
 }
 
-func treeCopy(t *testing.T, tree *AvlTree, n int) bool {
+func treePCopy(t *testing.T, tree *PAvlTree, n int) bool {
 	copy := tree.Copy()
-	return compareTrees(t, tree.root, copy.root)
+	return comparePTrees(t, tree.root, copy.root)
 }
 
-func testOverflow(t *testing.T, insert []int) bool {
-	type testFunc func(t *testing.T, tree *AvlTree, n int) bool
+func testPOverflow(t *testing.T, insert []int) bool {
+	type testFunc func(t *testing.T, tree *PAvlTree, n int) bool
 	tests := [...]struct {
 		name string
 		fn   testFunc
 	}{
-		{"first item", iterFirst},
-		{"last item", iterLast},
-		{"find item", iterFind},
-		{"insert item", iterInsert},
-		{"next item", iterNext},
-		{"prev item", iterPrev},
-		{"copy tree", treeCopy},
+		{"first item", iterPFirst},
+		{"last item", iterPLast},
+		{"find item", iterPFind},
+		{"insert item", iterPInsert},
+		{"next item", iterPNext},
+		{"prev item", iterPPrev},
+		{"copy tree", treePCopy},
 	}
 	n := len(insert)
 	for _, test := range tests {
 		if *verbose >= 2 {
 			t.Logf("Running %s test...\n", test.name)
 		}
-		tree := NewAvl(intCmp, nil)
+		tree := NewPAvl(intCmp, nil)
 		for i := 0; i < n; i++ {
 			addr, succ := tree.insert(insert[i])
 			if addr == nil || !succ {
@@ -515,7 +532,7 @@ func testOverflow(t *testing.T, insert []int) bool {
 		if !test.fn(t, tree, n) {
 			return false
 		}
-		if !verifyTree(t, tree, insert) {
+		if !verifyPTree(t, tree, insert) {
 			return false
 		}
 	}
