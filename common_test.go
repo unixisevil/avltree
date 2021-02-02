@@ -125,16 +125,16 @@ func TestInt(t *testing.T) {
 	case correctTest:
 		switch *treeType {
 		case noParent:
-			testCorrectness(t, insertArr, deleteArr)
+			testAvlCorrectness(t, insertArr, deleteArr)
 		case withParent:
-			testPCorrectness(t, insertArr, deleteArr)
+			testPAvlCorrectness(t, insertArr, deleteArr)
 		}
 	case overflowTest:
 		switch *treeType {
 		case noParent:
-			testOverflow(t, insertArr)
+			testAvlOverflow(t, insertArr)
 		case withParent:
-			testPOverflow(t, insertArr)
+			testPAvlOverflow(t, insertArr)
 		}
 	}
 }

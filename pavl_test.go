@@ -83,7 +83,7 @@ func (it *PAvlIter) check(t *testing.T, i, n int, title string) bool {
 	return ok
 }
 
-func comparePTrees(t *testing.T, a, b *pnode) bool {
+func comparePAvlTrees(t *testing.T, a, b *pnode) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -115,10 +115,10 @@ func comparePTrees(t *testing.T, a, b *pnode) bool {
 	}
 	ok := true
 	if a.links[Left] != nil {
-		ok = ok && comparePTrees(t, a.links[Left], b.links[Left])
+		ok = ok && comparePAvlTrees(t, a.links[Left], b.links[Left])
 	}
 	if a.links[Right] != nil {
-		ok = ok && comparePTrees(t, a.links[Right], b.links[Right])
+		ok = ok && comparePAvlTrees(t, a.links[Right], b.links[Right])
 	}
 	return ok
 }
@@ -266,7 +266,7 @@ func verifyPTree(t *testing.T, tree *PAvlTree, arr []int) bool {
 	return ok
 }
 
-func testPCorrectness(t *testing.T, insert, delete []int) (ok bool) {
+func testPAvlCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 	//测试创建树,插入数据
 	tree := NewPAvl(intCmp, nil)
 	ok = true
@@ -380,7 +380,7 @@ func testPCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 				ok = false
 				return
 			}
-			ok = ok && comparePTrees(t, tree.root, copy.root)
+			ok = ok && comparePAvlTrees(t, tree.root, copy.root)
 		}
 
 	}
@@ -391,7 +391,7 @@ func testPCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 	return
 }
 
-func iterPFirst(t *testing.T, tree *PAvlTree, n int) bool {
+func iterPAvlFirst(t *testing.T, tree *PAvlTree, n int) bool {
 	var it PAvlIter
 	if ret := it.HookWith(tree).First(); ret == nil || ret != 0 {
 		actual := 0
@@ -406,7 +406,7 @@ func iterPFirst(t *testing.T, tree *PAvlTree, n int) bool {
 	return true
 }
 
-func iterPLast(t *testing.T, tree *PAvlTree, n int) bool {
+func iterPAvlLast(t *testing.T, tree *PAvlTree, n int) bool {
 	var it PAvlIter
 	if ret := it.HookWith(tree).Last(); ret == nil || ret != n-1 {
 		actual := 0
@@ -421,7 +421,7 @@ func iterPLast(t *testing.T, tree *PAvlTree, n int) bool {
 	return true
 }
 
-func iterPFind(t *testing.T, tree *PAvlTree, n int) bool {
+func iterPAvlFind(t *testing.T, tree *PAvlTree, n int) bool {
 	var it PAvlIter
 	it.HookWith(tree)
 	for i := 0; i < n; i++ {
@@ -439,7 +439,7 @@ func iterPFind(t *testing.T, tree *PAvlTree, n int) bool {
 	return true
 }
 
-func iterPInsert(t *testing.T, tree *PAvlTree, n int) bool {
+func iterPAvlInsert(t *testing.T, tree *PAvlTree, n int) bool {
 	var it PAvlIter
 	it.HookWith(tree)
 	for i := 0; i < n; i++ {
@@ -457,7 +457,7 @@ func iterPInsert(t *testing.T, tree *PAvlTree, n int) bool {
 	return true
 }
 
-func iterPNext(t *testing.T, tree *PAvlTree, n int) bool {
+func iterPAvlNext(t *testing.T, tree *PAvlTree, n int) bool {
 	var it PAvlIter
 	it.HookWith(tree)
 	for i := 0; i < n; i++ {
@@ -475,7 +475,7 @@ func iterPNext(t *testing.T, tree *PAvlTree, n int) bool {
 	return true
 }
 
-func iterPPrev(t *testing.T, tree *PAvlTree, n int) bool {
+func iterPAvlPrev(t *testing.T, tree *PAvlTree, n int) bool {
 	var it PAvlIter
 	it.HookWith(tree)
 	for i := n - 1; i >= 0; i-- {
@@ -493,24 +493,24 @@ func iterPPrev(t *testing.T, tree *PAvlTree, n int) bool {
 	return true
 }
 
-func treePCopy(t *testing.T, tree *PAvlTree, n int) bool {
+func copyPAvlTree(t *testing.T, tree *PAvlTree, n int) bool {
 	copy := tree.Copy()
-	return comparePTrees(t, tree.root, copy.root)
+	return comparePAvlTrees(t, tree.root, copy.root)
 }
 
-func testPOverflow(t *testing.T, insert []int) bool {
+func testPAvlOverflow(t *testing.T, insert []int) bool {
 	type testFunc func(t *testing.T, tree *PAvlTree, n int) bool
 	tests := [...]struct {
 		name string
 		fn   testFunc
 	}{
-		{"first item", iterPFirst},
-		{"last item", iterPLast},
-		{"find item", iterPFind},
-		{"insert item", iterPInsert},
-		{"next item", iterPNext},
-		{"prev item", iterPPrev},
-		{"copy tree", treePCopy},
+		{"first item", iterPAvlFirst},
+		{"last item", iterPAvlLast},
+		{"find item", iterPAvlFind},
+		{"insert item", iterPAvlInsert},
+		{"next item", iterPAvlNext},
+		{"prev item", iterPAvlPrev},
+		{"copy tree", copyPAvlTree},
 	}
 	n := len(insert)
 	for _, test := range tests {

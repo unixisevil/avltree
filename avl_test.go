@@ -249,7 +249,7 @@ func compareTrees(t *testing.T, a, b *node) bool {
 	return ok
 }
 
-func testCorrectness(t *testing.T, insert, delete []int) (ok bool) {
+func testAvlCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 	//测试创建树,插入数据
 	tree := NewAvl(intCmp, nil)
 	ok = true
@@ -481,7 +481,7 @@ func treeCopy(t *testing.T, tree *AvlTree, n int) bool {
 	return compareTrees(t, tree.root, copy.root)
 }
 
-func testOverflow(t *testing.T, insert []int) bool {
+func testAvlOverflow(t *testing.T, insert []int) bool {
 	type testFunc func(t *testing.T, tree *AvlTree, n int) bool
 	tests := [...]struct {
 		name string
