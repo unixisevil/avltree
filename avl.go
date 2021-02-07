@@ -1,25 +1,10 @@
-package avltree
+package bbst
 
 import (
 	"unsafe"
 )
 
 const avlMaxHeight = 92
-
-const (
-	Left = iota
-	Right
-	ChildNum
-)
-
-/*
-  a  < b,  return negative value
-  a  > b,  return positive value
-  a == b,  return zero value
-*/
-type Compare func(a, b interface{}, extraParam interface{}) int
-
-type Item interface{}
 
 type node struct {
 	links   [ChildNum]*node
@@ -35,7 +20,7 @@ type AvlTree struct {
 	generation int         // generation number
 }
 
-func NewAvl(cmp Compare, extra interface{}) *AvlTree {
+func NewAvlTree(cmp Compare, extra interface{}) *AvlTree {
 	if cmp == nil {
 		return nil
 	}
@@ -374,7 +359,7 @@ func (t *AvlTree) Copy() *AvlTree {
 	if t == nil {
 		return nil
 	}
-	n := NewAvl(t.cmpFunc, t.extraParam)
+	n := NewAvlTree(t.cmpFunc, t.extraParam)
 	if n == nil {
 		return nil
 	}
@@ -423,8 +408,8 @@ func (t *AvlTree) Copy() *AvlTree {
 	}
 }
 
-func (t *AvlTree) Iter() *AvlIter {
-	it := NewIter()
+func (t *AvlTree) Iter() Iterator {
+	it := NewAvlIter()
 	return it.HookWith(t)
 }
 
@@ -436,7 +421,7 @@ type AvlIter struct {
 	generation int                 // generation number
 }
 
-func NewIter() *AvlIter {
+func NewAvlIter() *AvlIter {
 	return &AvlIter{}
 }
 

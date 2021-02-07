@@ -1,4 +1,4 @@
-package avltree
+package bbst
 
 import (
 	"unsafe"
@@ -18,7 +18,7 @@ type PAvlTree struct {
 	count      int         // number of item in tree
 }
 
-func NewPAvl(cmp Compare, extra interface{}) *PAvlTree {
+func NewPAvlTree(cmp Compare, extra interface{}) *PAvlTree {
 	if cmp == nil {
 		return nil
 	}
@@ -427,7 +427,7 @@ func (t *PAvlTree) Copy() *PAvlTree {
 	if t == nil {
 		return nil
 	}
-	n := NewPAvl(t.cmpFunc, t.extraParam)
+	n := NewPAvlTree(t.cmpFunc, t.extraParam)
 	if n == nil {
 		return nil
 	}
@@ -477,8 +477,8 @@ func (t *PAvlTree) Copy() *PAvlTree {
 	}
 }
 
-func (t *PAvlTree) Iter() *PAvlIter {
-	it := NewPIter()
+func (t *PAvlTree) Iter() Iterator {
+	it := NewPAvlIter()
 	return it.HookWith(t)
 }
 
@@ -487,7 +487,7 @@ type PAvlIter struct {
 	node *pnode    //current node in tree
 }
 
-func NewPIter() *PAvlIter {
+func NewPAvlIter() *PAvlIter {
 	return &PAvlIter{}
 }
 

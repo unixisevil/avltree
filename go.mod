@@ -1,3 +1,3 @@
-module github.com/unixisevil/avltree
+module github.com/unixisevil/bbst
 
 go 1.15

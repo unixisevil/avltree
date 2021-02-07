@@ -1,4 +1,4 @@
-package avltree
+package bbst
 
 import (
 	"fmt"
@@ -251,7 +251,7 @@ func compareTrees(t *testing.T, a, b *node) bool {
 
 func testAvlCorrectness(t *testing.T, insert, delete []int) (ok bool) {
 	//测试创建树,插入数据
-	tree := NewAvl(intCmp, nil)
+	tree := NewAvlTree(intCmp, nil)
 	ok = true
 	n := len(insert)
 
@@ -500,7 +500,7 @@ func testAvlOverflow(t *testing.T, insert []int) bool {
 		if *verbose >= 2 {
 			t.Logf("Running %s test...\n", test.name)
 		}
-		tree := NewAvl(intCmp, nil)
+		tree := NewAvlTree(intCmp, nil)
 		for i := 0; i < n; i++ {
 			addr, succ := tree.insert(insert[i])
 			if addr == nil || !succ {
