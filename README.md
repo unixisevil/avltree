@@ -1,6 +1,14 @@
-# avltree
+# bbst
 
-avl tree library implementation in golang
+balanced  binary  search tree library implementation in golang
+
+avl.go:    avl tree implementation without  parent  pointer
+
+pavl.go:  avl tree implementation with  parent pointer
+
+rb.go:     red black tree implementation without parent pointer
+
+prb.go:   red black tree implementation with parent pointer
 
 ### Example
 
@@ -14,14 +22,14 @@ import (
     "math/rand"
     "time"
 
-    "github.com/unixisevil/avltree"
+    "github.com/unixisevil/bbst"
 )
 
 func randRange(min, max int) int {
     return min + rand.Int()%(max-min+1)
 }
 
-var intCmp avltree.Compare = func(a, b interface{}, extraParam interface{}) int {
+var intCmp bbst.Compare = func(a, b interface{}, extraParam interface{}) int {
     ia := a.(int)
     ib := b.(int)
     if ia < ib {
@@ -36,7 +44,7 @@ var intCmp avltree.Compare = func(a, b interface{}, extraParam interface{}) int 
 func main() {
     rand.Seed(time.Now().Unix())
 
-    set := avltree.NewAvl(intCmp, nil)
+    set := bbst.NewAvlTree(intCmp, nil)
     for i := 0; i < 10; i++ {
         set.Insert(randRange(100, 200))
     }
@@ -66,7 +74,7 @@ package main
 import (
     "fmt"
 
-    "github.com/unixisevil/avltree"
+    "github.com/unixisevil/bbst"
 )
 
 type kv struct {
@@ -74,7 +82,7 @@ type kv struct {
     v int
 }
 
-var mapCmp avltree.Compare = func(a, b interface{}, extraParam interface{}) int {
+var mapCmp bbst.Compare = func(a, b interface{}, extraParam interface{}) int {
     akv := a.(kv)
     bkv := b.(kv)
     if akv.k < bkv.k {
@@ -87,7 +95,7 @@ var mapCmp avltree.Compare = func(a, b interface{}, extraParam interface{}) int 
 }
 
 func main() {
-    m := avltree.NewAvl(mapCmp, nil)
+    m := bbst.NewAvlTree(mapCmp, nil)
     m.Insert(kv{"GPU", 15})
     m.Insert(kv{"RAM", 20})
     m.Insert(kv{"CPU", 10})
@@ -114,50 +122,50 @@ func main() {
 package main
 
 import (
-	"fmt"
+    "fmt"
 
-	"github.com/unixisevil/avltree"
+    "github.com/unixisevil/bbst"
 )
 
 type mkv struct {
-	char rune
-	pos  []int
+    char rune
+    pos  []int
 }
 
-var multiMapCmp avltree.Compare = func(a, b interface{}, extraParam interface{}) int {
-	akv := a.(mkv)
-	bkv := b.(mkv)
-	if akv.char < bkv.char {
-		return -1
-	} else if akv.char > bkv.char {
-		return 1
-	} else {
-		return 0
-	}
+var multiMapCmp bbst.Compare = func(a, b interface{}, extraParam interface{}) int {
+    akv := a.(mkv)
+    bkv := b.(mkv)
+    if akv.char < bkv.char {
+        return -1
+    } else if akv.char > bkv.char {
+        return 1
+    } else {
+        return 0
+    }
 }
 
 func main() {
-	m := avltree.NewAvl(multiMapCmp, nil)
-	str := "this is it"
-	for pos, char := range str {
-		if char == ' ' {
-			continue
-		}
-		if item := m.Find(mkv{char: char}); item == nil {
-			posArr := []int{pos}
-			m.Replace(mkv{char: char, pos: posArr})
-		} else {
-			kv := item.(mkv)
-			kv.pos = append(kv.pos, pos)
-			m.Replace(kv)
-		}
-	}
+    m := bbst.NewAvlTree(multiMapCmp, nil)
+    str := "this is it"
+    for pos, char := range str {
+        if char == ' ' {
+            continue
+        }
+        if item := m.Find(mkv{char: char}); item == nil {
+            posArr := []int{pos}
+            m.Replace(mkv{char: char, pos: posArr})
+        } else {
+            kv := item.(mkv)
+            kv.pos = append(kv.pos, pos)
+            m.Replace(kv)
+        }
+    }
 
-	it := m.Iter()
-	for item := it.First(); item != nil; item = it.Next() {
-		e := item.(mkv)
-		fmt.Printf("char = %c, pos = %v\n", e.char, e.pos)
-	}
+    it := m.Iter()
+    for item := it.First(); item != nil; item = it.Next() {
+        e := item.(mkv)
+        fmt.Printf("char = %c, pos = %v\n", e.char, e.pos)
+    }
 }
 ```
 
