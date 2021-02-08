@@ -176,5 +176,11 @@ go test -v  -run 'Int' -insOrder 0  -delOrder 0 -type 1 -size 1000  -verbose 3
 ```
 
 ```bash
-go test -v  -run 'Map'  -mode 1
+go test -v  -run 'Map'  -type 3
+```
+
+### running the benchmarks:
+
+```bash
+go test    -bench=.   -benchtime=10000x  -size 1000
 ```
